@@ -67,14 +67,48 @@ int main(int argc, char** argv)
   if (!memory_info_list->valid()) {
     error("Invalid MinidumpMemoryInfoList");
   }
-  printf("BaseAddress\tAllocationBase\tAllocationProtect\tRegionSize\tState\tProtect\tType\n");
+//  printf("BaseAddress\tAllocationBase\tAllocationProtect\tRegionSize\tState\tProtect\tType\n");
+#define MEM_COMMIT 0x1000
+#define MEM_FREE   0x10000
+#define MEM_PROTECT_WRITECOMBINE 0x400
+  size_t sumFree = 0;
+  size_t sumTiny = 0;
+  size_t sumMisaligned = 0;
+  size_t sumUsable = 0;
+  size_t sumOther = 0;
+  size_t sumWC = 0;
   for (int i = 0; i < memory_info_list->info_count(); ++i) {
     const MinidumpMemoryInfo* memory_info = memory_info_list->GetMemoryInfoAtIndex(i);
     if (!memory_info->valid()) {
-      printf("INVALID\n");
+//      printf("INVALID\n");
       continue;
     }
     const MDRawMemoryInfo* rawinfo = memory_info->info();
+    if (rawinfo->state & MEM_FREE) {
+      size_t size = rawinfo->region_size;
+      sumFree += size;
+
+      if (size < 0x100000) {
+        sumTiny += size;
+      } else if (size < 0x200000) {
+        uint32_t base = (uint32_t)rawinfo->base_address;
+        uint32_t nextMB = (base + 0xFFFFF) & ~0xFFFFF;
+        uint32_t required = 0x100000 + (nextMB-base);
+        if (size < required) {
+          sumMisaligned += size;
+        } else {
+          sumUsable += size;
+        }
+      } else {
+        sumOther += size;
+      }
+    }
+    if (rawinfo->state == MEM_COMMIT &&
+        rawinfo->protection & MEM_PROTECT_WRITECOMBINE) {
+      sumWC += rawinfo->region_size;
+    }
+
+#if 0
     printf("%llx\t%llx\t%lx\t%llx\t%lx\t%lx\t%lx\n",
            rawinfo->base_address,
            rawinfo->allocation_base,
@@ -83,6 +117,15 @@ int main(int argc, char** argv)
            rawinfo->state,
            rawinfo->protection,
            rawinfo->type);
+#endif
   }
+
+  printf("Free=%luM,", sumFree >> 20);
+  printf("Tiny=%luM,", sumTiny >> 20);
+  printf("WriteCombine=%luM,", sumWC >> 20);
+  printf("Misaligned=%luM,", sumMisaligned >> 20);
+  printf("Usable=%luM,", sumUsable >> 20);
+  printf("Other=%luM", sumOther >> 20);
+  printf("\n");
   return 0;
 }
