@@ -84,6 +84,7 @@ int main(int argc, char** argv)
       continue;
     }
     const MDRawMemoryInfo* rawinfo = memory_info->info();
+    // This block was written by :dmajor in https://bugzilla.mozilla.org/show_bug.cgi?id=1001760
     if (rawinfo->state & MEM_FREE) {
       size_t size = rawinfo->region_size;
       sumFree += size;
