@@ -84,17 +84,18 @@ int main(int argc, char** argv)
       continue;
     }
     const MDRawMemoryInfo* rawinfo = memory_info->info();
-    // This block was written by :dmajor in https://bugzilla.mozilla.org/show_bug.cgi?id=1001760
+    // This block was written by :dmajor in bug 1001760.
     if (rawinfo->state & MEM_FREE) {
       size_t size = rawinfo->region_size;
       sumFree += size;
 
-      if (size < 0x100000) {
+      // With bug 1202523, now the default chunk size of mozjemalloc is 2M.
+      if (size < 0x200000) {
         sumTiny += size;
-      } else if (size < 0x200000) {
+      } else if (size < 0x400000) {
         uint32_t base = (uint32_t)rawinfo->base_address;
-        uint32_t nextMB = (base + 0xFFFFF) & ~0xFFFFF;
-        uint32_t required = 0x100000 + (nextMB-base);
+        uint32_t nextAlignedAddr = (base + 0x1FFFFF) & ~0x1FFFFF;
+        uint32_t required = 0x200000 + (nextAlignedAddr - base);
         if (size < required) {
           sumMisaligned += size;
         } else {
