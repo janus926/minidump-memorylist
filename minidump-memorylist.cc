@@ -89,13 +89,12 @@ int main(int argc, char** argv)
       size_t size = rawinfo->region_size;
       sumFree += size;
 
-      // With bug 1202523, now the default chunk size of mozjemalloc is 2M.
-      if (size < 0x200000) {
+      if (size < 0x100000) {
         sumTiny += size;
-      } else if (size < 0x400000) {
+      } else if (size < 0x200000) {
         uint32_t base = (uint32_t)rawinfo->base_address;
-        uint32_t nextAlignedAddr = (base + 0x1FFFFF) & ~0x1FFFFF;
-        uint32_t required = 0x200000 + (nextAlignedAddr - base);
+        uint32_t nextMB = (base + 0xFFFFF) & ~0xFFFFF;
+        uint32_t required = 0x100000 + (nextMB - base);
         if (size < required) {
           sumMisaligned += size;
         } else {
@@ -111,7 +110,7 @@ int main(int argc, char** argv)
     }
 
 #if 0
-    printf("%llx\t%llx\t%lx\t%llx\t%lx\t%lx\t%lx\n",
+    printf("%"PRIx64"\t%"PRIx64"\t%"PRIx32"\t%"PRIx64"\t%"PRIx32"\t%"PRIx32"\t%"PRIx32"\n",
            rawinfo->base_address,
            rawinfo->allocation_base,
            rawinfo->allocation_protection,
@@ -129,5 +128,5 @@ int main(int argc, char** argv)
   printf("Usable=%luM,", sumUsable >> 20);
   printf("Other=%luM", sumOther >> 20);
   printf("\n");
-  return 0;
+   return 0;
 }
